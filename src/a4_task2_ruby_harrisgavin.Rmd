@@ -22,7 +22,7 @@ library(broom)
 
 ### 1. Introduction
 
-*This report will....*
+This report provides an exploratory overview of weight differences in male and female juvenile hares across three sites of the Bonanza Creek Long-term Ecological Research (LTER), as well as the relationship between weight and hindfoot length in juvenile hares. Data was collected from 1999-2012 at sites Bonanza Black Spruce, Bonanza Mature, and Bonanza Riparian (Kielland et al. 2017).
 
 ![](http://www.lter.uaf.edu/perch/resources/tanana-w640h480.jpg){width=70%}
 
@@ -31,7 +31,9 @@ library(broom)
 
 ### 2. Data & Analyses
 
-*This data...including citations...*
+Data on Snowshoe hare measurements were collected and made available by Dr. Knut Kielland and colleagues at the Bonanza Creek Long-term Ecological Research (LTER), which is 20km southwest of Fairbanks, Alaska. The data contain observations of individual Snowshoe hares that were trapped between 1999 and 2012, but the research continues today. 
+
+Following exploratory data visualization, the weights of juvenile males and females are shown by two-sample t-tests using a significance level ($\alpha$) of 0.05 throughout. Differences between groups are described by Cohen's *d* effect size. The relationship between weight and hindfoot length is explored by simple linear regression. All analyses are in R version 4.0.2 using RStudio version 1.3.1056.
 
 
 ### 3. Exploratory Findings
@@ -73,7 +75,7 @@ ggplot(data = count_data, aes(x = year, y = n)) +
 Since trapping began in 1999, the number of juveniles trapped appears to have steadily decreased. The maximum count is in the first trapping year (1999) with a total of 126 juvenile hares trapped. However, there is great fluctuation in the number of juveniles caught throughout the 14 year span of this dataset, with some years (2002, 2009) resulting in 0 juveniles trapped. Perhaps in 1999 when the study began, there was a significant effort to trap hares which resulted in this large total count. Because of this, it is possible that 1999 had an unusually high count, and in fact the number of juveniles caught has remained steady after that unusual peak. 
 
 
-#### II. Visualize Juvenile Hare Weights
+#### II. Visualization of Juvenile Hare Weights
 
 ```{r}
 # Using ggplot beeswarm to visualize this data
@@ -174,4 +176,71 @@ hare_effsize <- cohen.d(male_weight, female_weight, na.rm = TRUE)
 Hare weight (grams) was compared across the two sexes; site was not included as a variable here, but should be investigated moving forward. On average, juvenile male Snowshoe hares (`r hare_table[2,2]` $\pm$ `r hare_table[2,3]`g, *n* = `r hare_table[2,4]`) weighed more than juvenile females 
 (`r hare_table[1,2]` $\pm$ `r hare_table[1,3]`g, *n* = `r hare_table[1,4]`).
 
-While the absolute difference in means is `r round(male_mean, 2) - round(female_mean, 2)` g (a `r round((male_mean - female_mean)/((male_mean + female_mean)/2)*100, 2)`% difference), the difference in means is significant (Welch's two-sample t-test: t(`r round(hare_ttest_tidy$parameter,2)`) = `r round(hare_ttest_tidy$statistic,2)`, p < 0.007), and the effect size is large (Cohen's *d* = `r round(hare_effsize$estimate,2)`).
+While the absolute difference in means is `r round(male_mean, 2) - round(female_mean, 2)` g (a `r round((male_mean - female_mean)/((male_mean + female_mean)/2)*100, 2)`% difference), the difference in means is significant (Welch's two-sample t-test: t(`r round(hare_ttest_tidy$parameter,2)`) = `r round(hare_ttest_tidy$statistic,2)`, p < 0.05), and the effect size is moderate (Cohen's *d* = `r round(hare_effsize$estimate,2)`).
+
+#### IV. Relationship between juvenile weight & hindfoot length
+
+An exploratory visualization of the relationship between juvenile weight and hindfoot length was completed. 
+
+```{r, include = FALSE}
+# Do linear regression
+hare_lm <- lm(weight ~ hindft, data = hare_data)
+
+# Get tidy versions of the model output to call later on in text
+hare_lm_tidy <- tidy(hare_lm)
+hare_lm_glance <- glance(hare_lm)
+
+# See model diagnostics:
+# plot(hare_lm)
+
+# Get Pearson's r correlation
+hare_cor <- cor.test(hare_data$weight, hare_data$hindft)
+
+# Tidy version of correlation output:
+hare_cor_tidy <- tidy(hare_cor)
+```
+
+```{r}
+ggplot(data = hare_data, aes(y = weight, x = hindft)) +
+  geom_point(color = "cyan4") +
+  theme_minimal() +
+  labs(y = "Weight (g)",
+       x = "Hindfoot Length (mm)",
+       title = "Weight vs. Hindfoot Length of Juvenile Hares")
+```
+
+**Figure 4.** Relationship between juvenile weight (g) and hindfoot length (mm). Points indicate individual hare measurements. Data: Kielland et al. 2017.
+
+```{r}
+ggplot(data = hare_data, aes(y = weight, x = hindft)) +
+  geom_point(color = "cyan4") +
+  geom_smooth(method = "lm", se = FALSE, color = "gray30") +
+  theme_minimal() +
+  labs(y = "Weight (g)",
+       x = "Hindfoot Length (mm)",
+       title = "Linear Regression: Weight vs. Hindfoot Length")
+```
+
+**Figure 5.** Linear regression exploring relationship between juvenile weight (g) and hindfoot length (mm). Linear model summary: $\beta$~1~ = `r round(hare_lm_tidy$estimate[2], 2)` g mm^-1^, p < 0.05, R^2^ = `r round(hare_lm_glance$r.squared,2)`, Pearson's *r* = `r round(hare_cor_tidy$estimate,2)`). Data: Kielland et al. 2017.
+
+The relationship between juvenile hare weight and hindfoot length appears somewhat linear (Figure 5). Linear regression revealed that weight may predict hindfoot lenth (p < 0.05, R^2^ = `r round(hare_lm_glance$r.squared,2)`) with an average slope of $\beta$ = `r round(hare_lm_tidy$estimate[2], 2)` g mm^-1^ (i.e., for each one millimeter increase in hindfoot length we expect an average increase in weight of `r round(hare_lm_tidy$estimate[2], 2)` g). However,  it does not appear that weight and hindfoot length are strongly correlated, though they are positively and significantly correlated (Pearson's *r* = `r round(hare_cor_tidy$estimate,2)`, p < 0.05).  
+
+### Summary
+
+Exploratory analysis of the Kielland et al. 2017 data reveals the following initial findings:
+
+- The number of juveniles caught has been decreasing since a large peak in 1999. 
+- On average, male juvenile hares weigh more than female juvenile hares ((`r hare_table[2,2]` $\pm$ `r hare_table[2,3]`g, *n* = `r hare_table[2,4]`) and 
+(`r hare_table[1,2]` $\pm$ `r hare_table[1,3]`g, *n* = `r hare_table[1,4]`), respectively).
+- Using simple linear regression, there is a positive and significant correlation between juvenile weight and hindfoot length ( $\beta$~1~ = `r round(hare_lm_tidy$estimate[2], 2)` g mm^-1^, p < 0.05, R^2^ = `r round(hare_lm_glance$r.squared,2)`, Pearson's *r* = `r round(hare_cor_tidy$estimate,2)`). However, because there isn't a strong relationship, further analysis of this relationship is recommended. 
+
+Next steps:
+
+- Understanding the factors that influence weight of juvenile hares at each research site (Bonanza Black Spruce, Bonanza Mature, and Bonanza Riparian). 
+- Further analyses looking at the relationship between weight and hindfoot length (such as incorporating sex or site)
+
+### Citations
+
+Kielland, K., F.S. Chapin, R.W. Ruess, and Bonanza Creek LTER. 2017. Snowshoe hare physical data in Bonanza Creek Experimental Forest: 1999-Present ver 22. Environmental Data Initiative. https://doi.org/10.6073/pasta/03dce4856d79b91557d8e6ce2cbcdc14 (Accessed 2020-11-21).
+
+Ruess, Roger. "Credit: Roger Ruess." Bonanza Creek LTER: Bonanza Creek Experimental Forest. Photograph. (http://www.lter.uaf.edu/research/study-sites-bcef)
