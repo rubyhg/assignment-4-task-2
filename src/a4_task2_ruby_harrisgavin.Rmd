@@ -1,0 +1,177 @@
+---
+title: "Mini Report: Bonanza Hares"
+author: "Ruby Harris-Gavin"
+date: "11/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(janitor)
+library(kableExtra)
+library(here)
+library(lubridate)
+library(ggplot2)
+library(ggbeeswarm)
+library(effsize)
+library(broom)
+```
+
+
+### 1. Introduction
+
+*This report will....*
+
+![](http://www.lter.uaf.edu/perch/resources/tanana-w640h480.jpg){width=70%}
+
+**Figure 1.** Bonanza Creek Experimental Forest. Credit: Roger Ruess
+
+
+### 2. Data & Analyses
+
+*This data...including citations...*
+
+
+### 3. Exploratory Findings
+
+
+#### I. Annual Juvenile Hare Trap Counts
+
+```{r}
+# Reading in the data and cleaning it up so that it contains just juveniles and has a column for year. Plus, I am cleaning up data names so that I can use them easily later.
+hare_data <- read_csv(here("data","bonanza_hares.csv")) %>% 
+  clean_names() %>% 
+  mutate(date = mdy(date)) %>% 
+  mutate(year = year(date)) %>% 
+  filter(age == "j") %>% 
+  mutate(site_full = case_when(
+    grid %in% c("bonrip") ~ "Bonanza Riparian",
+    grid %in% c("bonmat") ~ "Bonanza Mature",
+    grid %in% c("bonbs") ~ "Bonanza Black Spruce")) %>% 
+  mutate(sex = case_when(
+    sex %in% c("m") ~ "Male",
+    sex %in% c("f") ~ "Female"))
+
+# Making a new set of data that just includes juvenile hare counts.
+count_data <- hare_data %>% 
+  count(age, year)
+
+# Making the finalized visualization of what the count_data looks likes. 
+ggplot(data = count_data, aes(x = year, y = n)) +
+  geom_col() +
+  labs(title = "Bonanza Creek LTER Annual Juvenile Hare Trap Counts: 1999-2012", x = "Year", y = "Juvenile Hares") +
+  scale_x_continuous(breaks = c(1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012)) +
+  scale_y_continuous(breaks = c(0,25,50,75,100,125,150)) +
+  theme_classic()
+
+```
+
+**Figure 2.** Total number of juvenile hares trapped each year at Bonanza Creek LTER sites from 1999-2012. Data: Kielland et al. 2017.
+
+Since trapping began in 1999, the number of juveniles trapped appears to have steadily decreased. The maximum count is in the first trapping year (1999) with a total of 126 juvenile hares trapped. However, there is great fluctuation in the number of juveniles caught throughout the 14 year span of this dataset, with some years (2002, 2009) resulting in 0 juveniles trapped. Perhaps in 1999 when the study began, there was a significant effort to trap hares which resulted in this large total count. Because of this, it is possible that 1999 had an unusually high count, and in fact the number of juveniles caught has remained steady after that unusual peak. 
+
+
+#### II. Visualize Juvenile Hare Weights
+
+```{r}
+# Using ggplot beeswarm to visualize this data
+ggplot(data = hare_data, aes(x = sex, y = weight)) +
+  geom_beeswarm(aes(color = sex)) +
+  facet_wrap(~site_full) + #facet_wrap to compare weights across sites
+  scale_color_manual(values = c("goldenrod2","cyan4"), na.value = "coral") +
+  geom_boxplot(fill = NA, width = .25, outlier.color = NA) +
+  stat_summary(fun=mean, 
+               geom="point", 
+               shape=20, 
+               size=4, 
+               color="black", 
+               fill="black") + #This boxplot and stat_summary allowed me to represent the mean weights
+  theme_classic() +
+  labs(y = "Weight (grams)",
+       x = "Sex",
+       title = "Sex vs. Weight: Juvenile Hares")
+```
+
+**Figure 3.** Comparison of male and female juvenile hare weight at sites Bonanza Black Spruce, Bonanza Mature, and Bonanza Riparian. Box endpoints indicate the 25^th^ and 75^th^ percentile values; the black line and black point within the box indicate the median and mean value for each sex, respectively. Data: Kielland et al. 2017.
+
+
+On average, it appears male juvenile hares weigh more than female juvenile hares at all three sites. It is interesting to note that both the males and the females at the Bonanza Black Spruce site on average weigh more than the hares at either Bonanza Mature or Bonanza Riparian. However, the hares at Bonanza Riparian have the largest distribution of weights, including the highest values at over 1600g. One explanation for this could be the differences in resource availability at each site, or the number of predators that live near these sites.
+
+
+#### III. Juvenile Male and Female Snowshoe Hare Weight: Descriptive Statistics
+
+```{r descriptive_stats}
+# Getting the summary stat values that I will include in the table.
+hare_table <- hare_data %>% 
+  group_by(sex) %>% 
+  summarize(
+    mean = round(mean(weight, na.rm = TRUE),2),
+    sd = round(sd(weight, na.rm = TRUE),2),
+    n = n()
+  )
+
+```
+
+
+
+**Table 1.** Summary statistics for juvenile male and female Snowshoe hare weight. Data: Kielland et al. 2017.
+```{r}
+# Using kableExtra to create my table
+hare_table %>% 
+  kable(col.names = c("Sex", "Mean weight (g)", "Standard deviation (g)", "Sample size")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+
+```{r, include = FALSE}
+# In this code chunk I am checking assumptions and making exploratory graphs.
+
+# Pulling vectors of weights for male and female hares
+
+# male weights
+male_weight <- hare_data %>% 
+  filter(sex == "Male") %>% 
+  select(sex,weight) %>% 
+  pull(weight)
+
+# female weights
+female_weight <- hare_data %>% 
+  filter(sex == "Female") %>% 
+  select(sex,weight) %>% 
+  pull(weight)
+
+# Plot histograms & qq-plots to check assumptions
+hist(male_weight) # Looks normal
+qqnorm(male_weight) # Relatively linear
+hist(female_weight) # Maybe a bit negatively skewed
+qqnorm(female_weight) # Looks very linear
+
+# Overall: this data looks normal!
+
+
+# Using a t-test to see it there is a significant difference between male and female weight.
+hare_ttest <- t.test(male_weight, female_weight)
+hare_ttest
+
+# Tidy model results to call outputs in-line: 
+hare_ttest_tidy <- tidy(hare_ttest)
+
+# p-value is very low, so I would reject the null. It is likely these values came from populations with two different means.
+
+# Get the means & SDs for each: 
+male_mean <- mean(male_weight, na.rm = TRUE)
+female_mean <- mean(female_weight, na.rm = TRUE)
+male_sd <- sd(male_weight, na.rm = TRUE)
+female_sd <- sd(female_weight, na.rm = TRUE)
+
+
+# Cohen's d test.
+hare_effsize <- cohen.d(male_weight, female_weight, na.rm = TRUE)
+```
+
+Hare weight (grams) was compared across the two sexes; site was not included as a variable here, but should be investigated moving forward. On average, juvenile male Snowshoe hares (`r hare_table[2,2]` $\pm$ `r hare_table[2,3]`g, *n* = `r hare_table[2,4]`) weighed more than juvenile females 
+(`r hare_table[1,2]` $\pm$ `r hare_table[1,3]`g, *n* = `r hare_table[1,4]`).
+
+While the absolute difference in means is `r round(male_mean, 2) - round(female_mean, 2)` g (a `r round((male_mean - female_mean)/((male_mean + female_mean)/2)*100, 2)`% difference), the difference in means is significant (Welch's two-sample t-test: t(`r round(hare_ttest_tidy$parameter,2)`) = `r round(hare_ttest_tidy$statistic,2)`, p < 0.007), and the effect size is large (Cohen's *d* = `r round(hare_effsize$estimate,2)`).
